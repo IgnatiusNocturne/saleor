@@ -6,6 +6,9 @@ from ....order.models import Order
 from ....payment.interface import PaymentGatewayData
 from ...tests.utils import get_graphql_content, get_graphql_content_from_response
 from ..utils import to_global_id_or_none
+from ..scalars import WeightScalar
+from graphql.error import GraphQLError
+
 
 QUERY_CHECKOUT = """
 query getCheckout($token: UUID!) {
@@ -419,3 +422,44 @@ def test_correct_date_time_as_input(
 
     # then
     get_graphql_content(response)
+
+    
+# --- WeightScalar.parse_value tests ---
+
+def test_weight_scalar_parse_value_null_value():
+    """Reproduces issue #18680: null value should raise GraphQLError, not TypeError."""
+    with pytest.raises(GraphQLError, match="Weight value cannot be null."):
+        WeightScalar.parse_value({"unit": "KG", "value": None})
+
+
+def test_weight_scalar_parse_value_null_unit():
+    with pytest.raises(GraphQLError, match="Weight unit cannot be null."):
+        WeightScalar.parse_value({"unit": None, "value": 5.0})
+
+
+def test_weight_scalar_parse_value_negative():
+    with pytest.raises(GraphQLError, match="Weight value cannot be negative."):
+        WeightScalar.parse_value({"unit": "KG", "value": -5.0})
+
+
+def test_weight_scalar_parse_value_invalid_unit():
+    with pytest.raises(GraphQLError, match="Invalid weight unit"):
+        WeightScalar.parse_value({"unit": "INVALID", "value": 5.0})
+
+
+def test_weight_scalar_parse_value_non_numeric():
+    with pytest.raises(GraphQLError, match="Weight value must be a number"):
+        WeightScalar.parse_value({"unit": "KG", "value": "not-a-number"})
+
+
+def test_weight_scalar_parse_value_valid():
+    from measurement.measures import Weight
+    result = WeightScalar.parse_value({"unit": "KG", "value": 5.0})
+    assert isinstance(result, Weight)
+
+
+def test_weight_scalar_parse_value_zero():
+    """Zero is a valid weight (e.g. for digital products)."""
+    from measurement.measures import Weight
+    result = WeightScalar.parse_value({"unit": "KG", "value": 0})
+    assert isinstance(result, Weight)

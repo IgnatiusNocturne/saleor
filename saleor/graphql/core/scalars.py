@@ -5,6 +5,7 @@ import graphene
 from graphene.types.generic import GenericScalar
 from graphql.language import ast
 from measurement.measures import Weight
+from graphql.error import GraphQLError
 
 from ...core.weight import (
     convert_weight_to_default_weight_unit,
@@ -96,10 +97,33 @@ class WeightScalar(graphene.Scalar):
     @staticmethod
     def parse_value(value):
         if isinstance(value, dict):
-            weight = Weight(**{value["unit"]: value["value"]})
+            unit = value.get("unit")
+            weight_value = value.get("value")
+
+            if unit is None:
+                raise GraphQLError("Weight unit cannot be null.")
+            if weight_value is None:
+                raise GraphQLError("Weight value cannot be null.")
+
+            try:
+                weight_decimal = decimal.Decimal(str(weight_value))
+            except decimal.DecimalException:
+                raise GraphQLError(
+                    f"Weight value must be a number, got: {weight_value!r}"
+                )
+
+            if weight_decimal < 0:
+                raise GraphQLError("Weight value cannot be negative.")
+
+            try:
+                return Weight(**{unit: weight_decimal})
+            except (TypeError, ValueError, AttributeError):
+                raise GraphQLError(
+                    f"Invalid weight unit: {unit!r}. "
+                    "Use a valid unit such as 'KG', 'LB', 'OZ', or 'G'."
+                )
         else:
-            weight = WeightScalar.parse_decimal(value)
-        return weight
+            return WeightScalar.parse_decimal(value)
 
     @staticmethod
     def serialize(weight):

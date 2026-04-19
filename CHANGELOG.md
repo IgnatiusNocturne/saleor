@@ -11,6 +11,7 @@ All notable, unreleased changes to this project will be documented in this file.
 ### Webhooks
 
 ### Other changes
+- Fixed `WeightScalar.parse_value()` to raise `GraphQLError` with descriptive messages instead of crashing with `TypeError` when weight inputs contain null, negative, or invalid values. Fixes #18680.
 
 #### Search improvements
 
