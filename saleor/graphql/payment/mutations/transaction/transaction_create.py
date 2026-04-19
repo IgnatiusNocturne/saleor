@@ -135,6 +135,29 @@ class TransactionCreate(BaseMutation):
                     )
                 }
             ) from e
+    @classmethod
+    def validate_psp_reference_length(cls, psp_reference: str | None, error_code: str):
+        if psp_reference and len(psp_reference) > 512:
+            raise ValidationError(
+                {
+                    "transaction": ValidationError(
+                        "PSP reference cannot exceed 512 characters.",
+                        code=error_code,
+                    )
+                }
+            )
+
+    @classmethod
+    def validate_message_length(cls, message: str | None, error_code: str):
+        if message and len(message) > 512:
+            raise ValidationError(
+                {
+                    "transaction": ValidationError(
+                        "Message cannot exceed 512 characters.",
+                        code=error_code,
+                    )
+                }
+            )
 
     # TODO This should be unified with metadata_manager and MetadataItemCollection
     # EXT-2054
@@ -258,6 +281,14 @@ class TransactionCreate(BaseMutation):
         )
         cls.validate_external_url(
             transaction.get("external_url"),
+            error_code=TransactionCreateErrorCode.INVALID.value,
+        )
+        cls.validate_psp_reference_length(
+            transaction.get("psp_reference"),
+            error_code=TransactionCreateErrorCode.INVALID.value,
+        )
+        cls.validate_message_length(
+            transaction.get("message"),
             error_code=TransactionCreateErrorCode.INVALID.value,
         )
         if payment_method_details := transaction.get("payment_method_details"):
